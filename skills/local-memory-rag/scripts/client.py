@@ -128,6 +128,18 @@ def parse_args() -> argparse.Namespace:
     search.add_argument("--include-inactive", action="store_true")
     search.add_argument("--include-supporting", action="store_true")
     add_common_arguments(search)
+
+    brief = subparsers.add_parser("brief", help="Build an evidence-first Agent work brief.")
+    brief.add_argument("query")
+    brief.add_argument("--limit", type=int, default=5)
+    brief.add_argument("--as-of", default="")
+    brief.add_argument("--max-age-days", type=int, default=180)
+    for name in ("track", "memory-type", "project-id", "user-id", "agent-id", "agent-scope", "app-id", "session-id", "status"):
+        brief.add_argument("--" + name, default="")
+    brief.add_argument("--has-open-loop", action="store_true")
+    brief.add_argument("--include-inactive", action="store_true")
+    brief.add_argument("--include-supporting", action="store_true")
+    add_common_arguments(brief)
     return parser.parse_args()
 
 
@@ -139,6 +151,12 @@ def print_human(payload) -> None:
         )
         return
     print(f"query={payload.get('query', '')}")
+    if "confidence" in payload:
+        print(f"confidence={payload.get('confidence')} summary={payload.get('summary', '')}")
+        print(f"evidence={len(payload.get('evidence', []))} conflicts={len(payload.get('conflicts', []))} open_loops={len(payload.get('open_loops', []))}")
+        for item in payload.get("next_steps", []):
+            print(f"next: {item}")
+        return
     print(f"mode={payload.get('mode', '')} results={len(payload.get('results', []))}")
     for index, row in enumerate(payload.get("results", []), 1):
         print(f"{index}. [{row.get('citation', '')}] {row.get('title', '')}")
@@ -173,11 +191,15 @@ def main() -> int:
             for name in ("has_open_loop", "include_inactive", "include_supporting"):
                 if getattr(args, name):
                     filters[name] = True
+            endpoint = "/v1/brief" if args.command == "brief" else "/v1/search"
+            request_payload = {"query": args.query, "limit": args.limit, "filters": filters}
+            if args.command == "brief":
+                request_payload.update({"as_of": args.as_of, "max_age_days": args.max_age_days})
             payload = request_json(
                 args.base_url,
-                "/v1/search",
+                endpoint,
                 token,
-                {"query": args.query, "limit": args.limit, "filters": filters},
+                request_payload,
             )
     except (ValueError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)

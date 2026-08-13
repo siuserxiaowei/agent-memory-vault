@@ -26,6 +26,7 @@ PUBLIC_FILES = (
     Path("scripts/agent_memory_search.py"),
     Path("scripts/agent_memory_zvec_index.py"),
     Path("scripts/client.py"),
+    Path("scripts/protocol.py"),
     Path("scripts/configure.py"),
     Path("scripts/download_model.py"),
     Path("scripts/manage.py"),

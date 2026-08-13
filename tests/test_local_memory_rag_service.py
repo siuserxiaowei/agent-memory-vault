@@ -96,6 +96,21 @@ class LocalMemoryRagContractTests(unittest.TestCase):
             with self.subTest(payload=payload), self.assertRaises(ValueError):
                 self.server.validate_search_request(payload)
 
+    def test_brief_request_validation_adds_time_aware_protocol_fields(self) -> None:
+        request = self.server.validate_brief_request(
+            {"query": "发布边界", "as_of": "2026-08-13", "max_age_days": 30}
+        )
+        self.assertEqual(request.as_of, "2026-08-13")
+        self.assertEqual(request.max_age_days, 30)
+        for payload in (
+            {"query": "x", "as_of": "yesterday"},
+            {"query": "x", "max_age_days": -1},
+            {"query": "x", "max_age_days": True},
+            {"query": "x", "unknown": 1},
+        ):
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                self.server.validate_brief_request(payload)
+
     def test_service_config_rejects_unknown_or_mistyped_fields(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             config = Path(raw_root) / "service.json"
@@ -525,6 +540,15 @@ class LocalMemoryRagHttpTests(unittest.TestCase):
                     "warnings": [],
                 }
 
+            def brief(self, request):
+                return {
+                    "query": request.query,
+                    "summary": "找到本地证据",
+                    "confidence": "high",
+                    "evidence": [{"citation": "项目/测试.md"}],
+                    "uncertainties": [], "conflicts": [], "open_loops": [], "next_steps": [],
+                }
+
         self.httpd = self.server_module.create_server(
             "127.0.0.1", 0, FakeBackend(), token="test-token"
         )
@@ -574,6 +598,12 @@ class LocalMemoryRagHttpTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as invalid_json:
             urllib.request.urlopen(request, timeout=5)
         self.assertEqual(invalid_json.exception.code, 400)
+
+    def test_brief_endpoint_returns_agent_ready_packet(self) -> None:
+        with self.request("/v1/brief", data={"query": "测试", "as_of": "2026-08-13"}) as response:
+            packet = json.load(response)
+        self.assertEqual(packet["confidence"], "high")
+        self.assertEqual(packet["evidence"][0]["citation"], "项目/测试.md")
 
     def test_http_rejects_unknown_routes_types_and_body_sizes(self) -> None:
         with self.assertRaises(urllib.error.HTTPError) as missing:

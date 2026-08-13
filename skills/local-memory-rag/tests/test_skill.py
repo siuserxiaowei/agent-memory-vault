@@ -17,6 +17,7 @@ class PackagedSkillTests(unittest.TestCase):
             "scripts/manage.py",
             "scripts/server.py",
             "scripts/client.py",
+            "scripts/protocol.py",
             "scripts/agent_memory_env.py",
             "scripts/agent_memory_index.py",
             "scripts/agent_memory_search.py",

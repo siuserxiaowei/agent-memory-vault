@@ -14,6 +14,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
+try:
+    from protocol import build_answer_packet
+except ImportError:  # pragma: no cover - direct spec loading
+    import importlib.util
+    _protocol_path = Path(__file__).with_name("protocol.py")
+    _protocol_spec = importlib.util.spec_from_file_location("local_memory_rag_protocol", _protocol_path)
+    if _protocol_spec is None or _protocol_spec.loader is None:
+        raise
+    _protocol_module = importlib.util.module_from_spec(_protocol_spec)
+    _protocol_spec.loader.exec_module(_protocol_module)
+    build_answer_packet = _protocol_module.build_answer_packet
+
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -55,6 +67,19 @@ class SearchRequest:
     query: str
     limit: int = DEFAULT_LIMIT
     filters: Mapping[str, object] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.filters is None:
+            object.__setattr__(self, "filters", {})
+
+
+@dataclass(frozen=True)
+class BriefRequest:
+    query: str
+    limit: int = DEFAULT_LIMIT
+    filters: Mapping[str, object] = None  # type: ignore[assignment]
+    as_of: str = ""
+    max_age_days: int = 180
 
     def __post_init__(self) -> None:
         if self.filters is None:
@@ -202,6 +227,29 @@ def validate_search_request(payload: object) -> SearchRequest:
     return SearchRequest(query=query, limit=limit, filters=filters)
 
 
+def validate_brief_request(payload: object) -> BriefRequest:
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+    unknown = set(payload) - {"query", "limit", "filters", "as_of", "max_age_days"}
+    if unknown:
+        raise ValueError("unknown request fields: " + ", ".join(sorted(unknown)))
+    search = validate_search_request({key: payload[key] for key in ("query", "limit", "filters") if key in payload})
+    as_of = payload.get("as_of", "")
+    if not isinstance(as_of, str):
+        raise ValueError("as_of must be an ISO date string")
+    as_of = as_of.strip()
+    if as_of:
+        try:
+            import datetime as dt
+            dt.date.fromisoformat(as_of)
+        except ValueError as exc:
+            raise ValueError("as_of must be an ISO date string") from exc
+    max_age_days = payload.get("max_age_days", 180)
+    if isinstance(max_age_days, bool) or not isinstance(max_age_days, int) or not 0 <= max_age_days <= 3650:
+        raise ValueError("max_age_days must be an integer between 0 and 3650")
+    return BriefRequest(search.query, search.limit, search.filters, as_of, max_age_days)
+
+
 def default_runtime_root() -> Path:
     configured = os.environ.get("AGENT_MEMORY_RUNTIME_ROOT", "").strip()
     if configured:
@@ -260,10 +308,12 @@ def _public_result(row: object) -> Optional[Dict[str, object]]:
         "sources": sorted({str(source) for source in sources if source}),
         "score": score,
     }
-    for key in ("memory_type", "track", "project_id", "verified_at"):
+    for key in ("memory_type", "track", "project_id", "status", "verified_at"):
         value = str(row.get(key) or "").strip()
         if value:
             result[key] = value
+    if row.get("has_open_loop"):
+        result["has_open_loop"] = True
     return result
 
 
@@ -369,6 +419,17 @@ class SearchBackend:
             },
         }
 
+    def brief(self, request: BriefRequest) -> Dict[str, object]:
+        search = self.search(SearchRequest(request.query, request.limit, request.filters))
+        packet = build_answer_packet(
+            request.query,
+            search,
+            as_of=request.as_of,
+            max_age_days=request.max_age_days,
+        )
+        packet["privacy"] = search["privacy"]
+        return packet
+
 
 def _handler_factory(backend: SearchBackend, token: str):
     class Handler(BaseHTTPRequestHandler):
@@ -408,7 +469,7 @@ def _handler_factory(backend: SearchBackend, token: str):
             self._send(200, backend.health())
 
         def do_POST(self) -> None:
-            if self.path != "/v1/search":
+            if self.path not in {"/v1/search", "/v1/brief"}:
                 self._send(404, {"error": "not_found"})
                 return
             if not self._require_auth():
@@ -428,12 +489,16 @@ def _handler_factory(backend: SearchBackend, token: str):
                 return
             try:
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
-                request = validate_search_request(payload)
+                request = (
+                    validate_brief_request(payload)
+                    if self.path == "/v1/brief"
+                    else validate_search_request(payload)
+                )
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
                 self._send(400, {"error": "invalid_request", "detail": str(exc)[:300]})
                 return
             try:
-                result = backend.search(request)
+                result = backend.brief(request) if self.path == "/v1/brief" else backend.search(request)
             except BackendError as exc:
                 self._send(503, {"error": "search_unavailable", "detail": str(exc)})
                 return

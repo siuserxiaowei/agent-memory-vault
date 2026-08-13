@@ -1,6 +1,6 @@
 # Agent Memory Vault: Shared Claude Code + Codex
 
-> Production AI Skills 大赛参赛入口：[`skills/local-memory-rag`](skills/local-memory-rag/) 将本项目封装成面向 Qoder、WorkBuddy、TRAE Work 等生产力 Agent 的纯本地私人知识库 Skill。它使用 loopback-only Client/Server、本地 EmbeddingGemma + Zvec + SQLite 混合检索，并只返回带相对路径引用的证据。复现步骤见 [`skills/local-memory-rag/references/setup.md`](skills/local-memory-rag/references/setup.md)，参赛材料见 [`submission/`](submission/)。
+> Production AI Skills 大赛参赛入口：[`skills/local-memory-rag`](skills/local-memory-rag/) 将本项目封装成面向 Qoder、WorkBuddy、TRAE Work 等生产力 Agent 的纯本地私人知识库 Skill。它使用 loopback-only Client/Server、本地 EmbeddingGemma + Zvec + SQLite 混合检索，并只返回带相对路径引用的证据；`/v1/brief` 还能把召回结果编排为带可信度、冲突、过期证据和下一步的 Agent 工作简报。复现步骤见 [`skills/local-memory-rag/references/setup.md`](skills/local-memory-rag/references/setup.md)，参赛材料见 [`submission/`](submission/)。
 
 当前验证基线（2026-08-11）：真实 Markdown 库已建立 15,446 篇关键词索引；固定 ModelScope revision 的 EmbeddingGemma 已在强制离线模式加载并生成 768 维向量；用“模型越来越强以后，什么样的能力包仍然值得长期保留？”这类语义改写查询，能命中对应 Knowledge Block 并返回 `mode=hybrid`。私人库、模型文件、Token、SQLite 和向量索引均不进入公开仓库。
 

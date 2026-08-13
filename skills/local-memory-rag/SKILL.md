@@ -28,6 +28,16 @@ python3 {{SKILL_DIR}}/scripts/client.py search "<query>" --limit 5 --json
 5. Answer only from returned evidence. Cite every material claim as `[relative/path.md]`.
 6. If evidence is weak or contradictory, narrow the query and search again. Do not invent missing facts.
 
+For a production task that needs an Agent-ready work brief, use the protocol endpoint:
+
+```bash
+python3 {{SKILL_DIR}}/scripts/client.py brief "当前项目发布边界" --as-of 2026-08-13 --json
+```
+
+`brief` is a deterministic local transformation over the same retrieval results. Its `answer_packet` fields are:
+`summary`, `confidence`, `evidence`, `uncertainties`, `conflicts`, `open_loops`, and `next_steps`.
+Treat `low` confidence, stale evidence, and conflicts as a stop-and-verify signal; never silently choose a conflicting note.
+
 If `health` fails, stop and tell the user that the local service must be started. Never replace a failed local lookup with cloud search.
 
 Use filters only when the request establishes them. Example:
