@@ -1,0 +1,7 @@
+interface:
+  display_name: "Local Memory RAG"
+  short_description: "Search a private local knowledge vault with cited evidence"
+  default_prompt: "Use $local-memory-rag to answer my question from my private local notes with citations."
+
+policy:
+  allow_implicit_invocation: true

@@ -131,13 +131,43 @@ def exact_secret_values() -> list[str]:
     return values
 
 
+IGNORED_REPO_DIR_NAMES = {
+    ".agent-memory",
+    ".contest-venv",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "model-cache",
+    "node_modules",
+    "private",
+    "secrets",
+    "tmp",
+    "vector-store",
+    "zvec",
+}
+IGNORED_REPO_FILE_PREFIXES = (".coverage",)
+
+
+def is_ignored_repo_path(path: Path) -> bool:
+    try:
+        relative = path.relative_to(REPO_ROOT)
+    except ValueError:
+        return False
+    return relative.name.startswith(IGNORED_REPO_FILE_PREFIXES) or any(
+        part in IGNORED_REPO_DIR_NAMES or part.startswith(".contest-venv-")
+        for part in relative.parts
+    )
+
+
 def iter_text_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
-    ignored_dirs = {".git", "__pycache__", "node_modules", ".pytest_cache"}
     files: list[Path] = []
     for path in root.rglob("*"):
-        if any(part in ignored_dirs for part in path.parts):
+        if is_ignored_repo_path(path):
             continue
         if not path.is_file():
             continue
@@ -276,7 +306,7 @@ def check_public_repo_files() -> list[str]:
     forbidden_names = {".env"}
     forbidden_suffixes = {".sqlite", ".db", ".key", ".pem"}
     for path in REPO_ROOT.rglob("*"):
-        if ".git" in path.parts:
+        if is_ignored_repo_path(path):
             continue
         if path.is_file() and path.name in forbidden_names:
             failures.append(f"FORBIDDEN public_file {path}")

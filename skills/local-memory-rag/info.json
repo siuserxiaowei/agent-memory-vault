@@ -1,0 +1,18 @@
+{
+  "venv_name": "local-memory-rag",
+  "python_version": "3.12",
+  "mem_need_gb": 3.5,
+  "server_alive_timeout": -1,
+  "models": [
+    {
+      "model_id": "google/embeddinggemma-300m",
+      "dir_name": "embeddinggemma-300m",
+      "required_files": [
+        "config.json",
+        "model.safetensors",
+        "modules.json",
+        "tokenizer.json"
+      ]
+    }
+  ]
+}

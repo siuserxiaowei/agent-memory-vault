@@ -1,0 +1,17 @@
+[run]
+branch = True
+source =
+    skills/local-memory-rag/scripts
+patch = subprocess
+
+[report]
+fail_under = 80
+include =
+    skills/local-memory-rag/scripts/client.py
+    skills/local-memory-rag/scripts/configure.py
+    skills/local-memory-rag/scripts/download_model.py
+    skills/local-memory-rag/scripts/manage.py
+    skills/local-memory-rag/scripts/server.py
+precision = 1
+show_missing = True
+skip_covered = True

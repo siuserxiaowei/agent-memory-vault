@@ -1,5 +1,27 @@
 # Agent Memory Vault: Shared Claude Code + Codex
 
+> Production AI Skills 大赛参赛入口：[`skills/local-memory-rag`](skills/local-memory-rag/) 将本项目封装成面向 Qoder、WorkBuddy、TRAE Work 等生产力 Agent 的纯本地私人知识库 Skill。它使用 loopback-only Client/Server、本地 EmbeddingGemma + Zvec + SQLite 混合检索，并只返回带相对路径引用的证据。复现步骤见 [`skills/local-memory-rag/references/setup.md`](skills/local-memory-rag/references/setup.md)，参赛材料见 [`submission/`](submission/)。
+
+当前验证基线（2026-08-11）：真实 Markdown 库已建立 15,446 篇关键词索引；固定 ModelScope revision 的 EmbeddingGemma 已在强制离线模式加载并生成 768 维向量；用“模型越来越强以后，什么样的能力包仍然值得长期保留？”这类语义改写查询，能命中对应 Knowledge Block 并返回 `mode=hybrid`。私人库、模型文件、Token、SQLite 和向量索引均不进入公开仓库。
+
+开源与作品边界：本仓库沿用 MIT 许可的 Agent Memory Vault 开源代码基础；`skills/local-memory-rag` 是面向 Production AI Skills 大赛开发的派生版本，新增了本地 Skill 封装、loopback 鉴权服务、隐私加固、自包含发布包、生产力 Agent 宿主验证及测试体系。公开材料采用项目级来源说明，不展示第三方个人姓名、昵称、账号或联系方式。
+
+宿主验证（2026-08-11）：Qoder 已真实识别 `Skill local-memory-rag`，执行健康检查和两轮本地搜索，最终两轮均返回 `hybrid` 并给出相对 Markdown 引用。脱敏截图与日志证据摘要见 [`submission/HOST_EVIDENCE.md`](submission/HOST_EVIDENCE.md)。该结论只覆盖 Qoder，不扩大到尚未分别验证的其他宿主。
+
+参赛质量门与可重复发布包：
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 -m unittest discover -s tests -v
+coverage erase
+coverage run -m unittest tests.test_local_memory_rag_service
+coverage combine
+coverage report
+python3 scripts/package_contest_skill.py --json
+```
+
+`.coveragerc` 对最终发布的 Skill 脚本执行分支覆盖率检查，低于 80% 失败。打包器使用显式文件白名单，并拒绝本机绝对路径、凭证样式内容和意外文件；生成的 `dist/local-memory-rag.zip` 内含 SQLite/Zvec 检索运行时、统一管理入口和 Windows 固定入口，因此无需另行克隆本仓库。包内不包含模型、Token、私人 Vault、SQLite 状态库、Zvec 索引或 Python 缓存。发布验收还会把 zip 解到临时目录，仅用一份临时 Markdown 完成配置、SQLite 建库、loopback 服务启动与关键词检索。
+
 这是一个可由 Claude Code 与 Codex 共用的长期记忆库模板。它把普通 Markdown 文件当作唯一长期事实源，用 SQLite 建全库索引，并用少量固定字段支持按用户、Agent、项目、应用、会话和记忆类型过滤。需要语义检索时，也可以额外启用本地 EmbeddingGemma + Zvec 向量旁路。
 
 这个仓库只包含模板、脚本和假示例，不应该包含你的真实记忆、真实路径、API key、私人项目名或聊天原文。
@@ -60,7 +82,7 @@ scripts/
 ## 快速开始
 
 ```bash
-git clone https://github.com/mcncarl/agent-memory-vault.git
+git clone https://github.com/siuserxiaowei/agent-memory-vault.git
 cd agent-memory-vault
 cp .env.example .env
 ```

@@ -1,0 +1,14 @@
+{
+  "display_name": "本地私人记忆 RAG",
+  "display_description": "让生产力 Agent 在不上传资料的前提下检索私人笔记",
+  "detail_describe": "使用本地 EmbeddingGemma、Zvec 与 SQLite 对 Markdown 知识库进行混合检索，通过仅回环可访问的服务返回带相对路径引用的证据。",
+  "name": "local-memory-rag",
+  "icon": "",
+  "use_cases": [
+    "让 Agent 从本地 Obsidian 或 Markdown 笔记中找回项目决策与工作流",
+    "在离线环境下对私人知识库进行语义问答并返回可核对的引用",
+    "把同一套本地记忆能力接入 Qoder、WorkBuddy、TRAE Work 等生产力 Agent"
+  ],
+  "author": "siuserxiaowei",
+  "version": "1.0.0"
+}

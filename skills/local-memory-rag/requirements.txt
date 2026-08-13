@@ -1,0 +1,5 @@
+# SQLite keyword indexing and search use only the Python standard library.
+# Install these pinned packages to enable EmbeddingGemma + Zvec semantic retrieval.
+sentence-transformers==5.6.0
+torch==2.12.1
+zvec==0.5.0

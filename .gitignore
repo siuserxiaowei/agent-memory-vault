@@ -12,6 +12,10 @@
 __pycache__/
 .pytest_cache/
 .mypy_cache/
+.coverage
+.coverage.*
+.contest-venv/
+.evidence-private/
 dist/
 build/
 node_modules/
