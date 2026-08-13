@@ -12,6 +12,10 @@ from collections import defaultdict
 from typing import Any, Mapping, Sequence
 
 
+PROTOCOL_NAME = "local-memory-answer-packet"
+PROTOCOL_VERSION = "1.1"
+
+
 def _date(value: object) -> dt.date | None:
     text = str(value or "").strip()
     if not text:
@@ -45,18 +49,34 @@ def build_answer_packet(
     open_loops: list[dict[str, object]] = []
     reference_date = _date(as_of) or dt.date.today()
     for row in rows:
+        verified = _date(row.get("verified_at"))
+        age_days = (reference_date - verified).days if verified else None
+        sources = list(row.get("sources", [])) if isinstance(row.get("sources", []), list) else []
+        try:
+            retrieval_score = float(row.get("score", 0) or 0)
+        except (TypeError, ValueError):
+            retrieval_score = 0.0
+        # This is an explainable ranking signal, not a claim of truth.  It
+        # rewards corroboration and recency while keeping retrieval score
+        # visible to the consuming Agent.
+        evidence_grade = "C"
+        if len(sources) >= 2 and str(row.get("status") or "") == "active":
+            evidence_grade = "B"
+        if evidence_grade == "B" and (age_days is None or age_days <= max_age_days):
+            evidence_grade = "A"
         item = {
             "citation": str(row.get("citation") or ""),
             "title": str(row.get("title") or ""),
             "snippet": str(row.get("snippet") or "")[:800],
-            "sources": list(row.get("sources", [])) if isinstance(row.get("sources", []), list) else [],
-            "score": row.get("score", 0),
+            "sources": sources,
+            "score": round(retrieval_score, 4),
+            "evidence_grade": evidence_grade,
+            "freshness": "unknown" if age_days is None else ("stale" if age_days > max_age_days else "fresh"),
         }
         for field in ("memory_type", "track", "project_id", "status", "verified_at"):
             if str(row.get(field) or "").strip():
                 item[field] = str(row[field])
         evidence.append(item)
-        verified = _date(row.get("verified_at"))
         if verified and (reference_date - verified).days > max_age_days:
             stale.append({"citation": item["citation"], "verified_at": item["verified_at"], "age_days": (reference_date - verified).days})
         if bool(row.get("has_open_loop")):
@@ -112,7 +132,19 @@ def build_answer_packet(
     if not evidence:
         next_steps = ["补充更具体的项目名、日期或决策关键词后重新检索。"]
 
+    if conflicts:
+        recommended_action = "verify_conflicts"
+    elif not evidence:
+        recommended_action = "refine_query"
+    elif open_loops:
+        recommended_action = "close_open_loops"
+    elif stale:
+        recommended_action = "refresh_evidence"
+    else:
+        recommended_action = "safe_to_draft"
+
     return {
+        "protocol": {"name": PROTOCOL_NAME, "version": PROTOCOL_VERSION},
         "query": query,
         "summary": summary,
         "confidence": confidence,
@@ -121,6 +153,7 @@ def build_answer_packet(
         "conflicts": conflicts,
         "open_loops": open_loops,
         "next_steps": next_steps,
+        "recommended_action": recommended_action,
         "stale_evidence": stale,
         "retrieval": {
             "mode": search_payload.get("mode", ""),

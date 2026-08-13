@@ -35,6 +35,9 @@ class MemoryProtocolTests(unittest.TestCase):
             max_age_days=30,
         )
         self.assertEqual(packet["confidence"], "medium")
+        self.assertEqual(packet["protocol"]["version"], "1.1")
+        self.assertEqual(packet["recommended_action"], "verify_conflicts")
+        self.assertEqual(packet["evidence"][1]["evidence_grade"], "A")
         self.assertEqual(len(packet["conflicts"]), 1)
         self.assertEqual(len(packet["stale_evidence"]), 1)
         self.assertEqual(len(packet["open_loops"]), 1)
@@ -45,6 +48,7 @@ class MemoryProtocolTests(unittest.TestCase):
         protocol = load_protocol()
         packet = protocol.build_answer_packet("不存在的事实", {"results": [], "mode": "keyword_fallback", "degraded": True})
         self.assertEqual(packet["confidence"], "low")
+        self.assertEqual(packet["recommended_action"], "refine_query")
         self.assertEqual(packet["evidence"], [])
         self.assertIn("不能据此下结论", packet["uncertainties"][0])
         self.assertEqual(packet["next_steps"], ["补充更具体的项目名、日期或决策关键词后重新检索。"])
